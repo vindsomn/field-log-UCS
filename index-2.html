@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Field Log — UCS Recording Metadata</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#12110e; --panel:#1a1815; --panel-2:#211e1a; --line:#2c2823;
+    --ink:#ece6da; --muted:#948c7e; --amber:#e0a458; --amber-soft:#f0bf86;
+    --sage:#9bab86; --danger:#cf6a52; --radius:14px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:"IBM Plex Mono",ui-monospace,monospace;
+    font-size:15px;line-height:1.5;
+    background-image:
+      radial-gradient(1200px 600px at 80% -10%, rgba(224,164,88,.07), transparent 60%),
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.025'/%3E%3C/svg%3E");
+    min-height:100vh; padding:0 0 60px;
+  }
+  .wrap{max-width:560px;margin:0 auto;padding:22px 18px}
+  header{margin:6px 0 22px}
+  .kicker{font-size:11px;letter-spacing:.32em;text-transform:uppercase;color:var(--amber);margin:0 0 6px}
+  h1{font-family:"Fraunces",serif;font-weight:600;font-size:34px;line-height:1.02;margin:0;letter-spacing:-.01em}
+  h1 em{font-style:italic;color:var(--amber-soft);font-weight:400}
+  .sub{color:var(--muted);font-size:12.5px;margin-top:8px;max-width:44ch}
+
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin:16px 0}
+  .panel-title{font-family:"Fraunces",serif;font-size:18px;margin:0 0 12px;display:flex;align-items:center;gap:9px}
+  .panel-title .n{font-size:10px;letter-spacing:.16em;color:var(--muted);font-family:"IBM Plex Mono";text-transform:uppercase}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--amber);box-shadow:0 0 9px var(--amber)}
+  .blockhint{font-size:11px;color:var(--muted);margin:-4px 0 10px;line-height:1.45}
+
+  button{font-family:inherit;cursor:pointer;border:none;border-radius:10px;font-size:14px;transition:.15s}
+  .capture-btn{width:100%;padding:15px;background:linear-gradient(180deg,var(--amber),#c98b3e);color:#1a140a;font-weight:600;letter-spacing:.02em;font-size:15px}
+  .capture-btn:active{transform:translateY(1px)}
+  .capture-btn[disabled]{opacity:.55;cursor:wait}
+
+  .readout{margin-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .cell{background:var(--panel-2);padding:10px 11px;min-height:54px}
+  .cell.full{grid-column:1 / -1}
+  .cell .lbl{font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
+  .cell .val{font-size:13.5px;margin-top:3px;color:var(--ink);word-break:break-word}
+  .cell .val.amber{color:var(--amber-soft)} .cell .val.sage{color:var(--sage)}
+  .status{font-size:11.5px;color:var(--muted);margin-top:10px;min-height:1em}
+  .status.err{color:var(--danger)}
+
+  label{display:block;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin:13px 0 5px}
+  input,textarea,select{
+    width:100%;background:var(--panel-2);border:1px solid var(--line);border-radius:9px;
+    color:var(--ink);font-family:inherit;font-size:14px;padding:10px 11px;outline:none
+  }
+  input:focus,textarea:focus,select:focus{border-color:var(--amber)}
+  textarea{resize:vertical;min-height:62px}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+  .hint{font-size:11px;color:var(--muted);margin-top:5px;line-height:1.4}
+  .hint a{color:var(--amber)}
+
+  .group{margin-top:14px}
+  .chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:6px}
+  .chip{display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border-radius:20px;
+        background:var(--panel-2);border:1px solid var(--line);color:var(--muted);
+        font-size:12.5px;letter-spacing:.01em;cursor:pointer;transition:.12s;user-select:none}
+  .chip:active{transform:translateY(1px)}
+  .chip.on{background:rgba(224,164,88,.14);border-color:var(--amber);color:var(--amber-soft)}
+  .chip .star{font-size:11px;opacity:.32;margin-left:1px}
+  .chip.on .star{opacity:.55}
+  .chip.primary{background:rgba(155,171,134,.17);border-color:var(--sage);color:var(--sage)}
+  .chip.primary .star{opacity:1;color:var(--sage)}
+  .grouphint{font-size:10.5px;color:var(--muted);margin-top:6px;font-style:italic;opacity:.8}
+
+  .fname{background:var(--panel-2);border:1px dashed var(--line);border-radius:9px;padding:10px 11px;margin-top:14px;font-size:12.5px;color:var(--sage);word-break:break-all;min-height:40px}
+  .fname b{color:var(--muted);font-weight:500;font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;display:block;margin-bottom:4px}
+
+  .save-btn{width:100%;padding:14px;background:var(--sage);color:#16190f;font-weight:600;margin-top:16px}
+  .save-btn:active{transform:translateY(1px)}
+
+  .entry{background:var(--panel-2);border:1px solid var(--line);border-radius:11px;padding:13px;margin-top:11px}
+  .entry h3{font-family:"Fraunces",serif;font-size:16px;margin:0 0 3px;color:var(--amber-soft)}
+  .entry .meta{font-size:11px;color:var(--muted);line-height:1.6}
+  .entry .tags{margin-top:7px;display:flex;flex-wrap:wrap;gap:5px}
+  .tag{font-size:10px;background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:3px 9px;color:var(--sage)}
+  .entry-actions{display:flex;gap:8px;margin-top:11px}
+  .mini{flex:1;padding:8px;background:var(--panel);border:1px solid var(--line);color:var(--muted);font-size:11.5px;letter-spacing:.05em}
+  .mini:active{color:var(--ink)}
+  .mini.del:active{color:var(--danger);border-color:var(--danger)}
+
+  .export-btn{width:100%;padding:14px;background:linear-gradient(180deg,var(--amber),#c98b3e);color:#1a140a;font-weight:600;margin-top:8px}
+  .export-btn:active{transform:translateY(1px)}
+  .subtle-btn{width:100%;padding:11px;background:var(--panel-2);border:1px solid var(--line);color:var(--muted);font-weight:500;margin-top:10px}
+  .subtle-btn:active{color:var(--ink)}
+  .export-note{font-size:10.5px;color:var(--muted);margin-top:9px;line-height:1.45;font-style:italic}
+  .empty{color:var(--muted);font-size:12.5px;text-align:center;padding:18px 0;font-style:italic}
+  .count{font-size:11px;color:var(--muted);margin-left:auto;font-family:"IBM Plex Mono"}
+  .foot{text-align:center;color:var(--muted);font-size:10.5px;margin-top:26px;letter-spacing:.05em;line-height:1.7}
+
+  .ucsresults{margin-top:6px;border:1px solid var(--line);border-radius:9px;overflow:hidden;display:none}
+  .ucsrow{padding:9px 11px;border-bottom:1px solid var(--line);font-size:12.5px;color:var(--ink);cursor:pointer}
+  .ucsrow:last-child{border-bottom:none}
+  .ucsrow:active{background:var(--panel-2)}
+  .ucscid{color:var(--amber-soft);font-weight:500;margin-right:8px}
+  .cidchip{font-size:11.5px;padding:6px 10px}
+  .cidx{margin-left:6px;opacity:.6;font-size:10px}
+  .cidchip:active{transform:translateY(1px)}
+  .cidnone{color:var(--muted);font-size:12px}
+  #searchMode .chip{font-size:11.5px;padding:6px 11px}
+
+  /* JSON copy overlay (universal fallback) */
+  .overlay{position:fixed;inset:0;background:rgba(8,7,5,.82);display:none;align-items:center;justify-content:center;padding:20px;z-index:50}
+  .overlay.on{display:flex}
+  .sheet{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;max-width:560px;width:100%;max-height:82vh;display:flex;flex-direction:column}
+  .sheet h3{font-family:"Fraunces",serif;margin:0 0 4px;font-size:17px}
+  .sheet p{font-size:11.5px;color:var(--muted);margin:0 0 10px;line-height:1.45}
+  .sheet textarea{flex:1;min-height:220px;font-size:11px;white-space:pre;overflow:auto}
+  .sheet-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+  .sheet-row button{padding:12px;font-weight:600}
+  .btn-primary{background:var(--amber);color:#1a140a}
+  .btn-ghost{background:var(--panel-2);border:1px solid var(--line);color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <p class="kicker">Field Instrument · v3</p>
+    <h1>Field <em>Log</em></h1>
+    <p class="sub">Capture everything at the moment of recording — conditions, exact GPS, and a UCS classification — and keep it in one stable JSON file. Enrich and convert to vendor formats later, at the desk.</p>
+  </header>
+
+  <!-- 1 · CAPTURE CONDITIONS -->
+  <section class="panel">
+    <h2 class="panel-title"><span class="dot"></span>Capture conditions <span class="n">on location</span></h2>
+    <button class="capture-btn" id="capBtn">⟳ Read location · sun · weather</button>
+    <div class="readout" id="readout" style="display:none">
+      <div class="cell full"><div class="lbl">Location</div><div class="val amber" id="rLoc">—</div></div>
+      <div class="cell"><div class="lbl">Coordinates</div><div class="val" id="rGps">—</div></div>
+      <div class="cell"><div class="lbl">Local time</div><div class="val" id="rTime">—</div></div>
+      <div class="cell"><div class="lbl">Sun phase</div><div class="val sage" id="rSun">—</div></div>
+      <div class="cell"><div class="lbl">Season</div><div class="val" id="rSeason">—</div></div>
+      <div class="cell"><div class="lbl">Sky</div><div class="val" id="rSky">—</div></div>
+      <div class="cell"><div class="lbl">Temp · humidity</div><div class="val" id="rTemp">—</div></div>
+      <div class="cell"><div class="lbl">Wind</div><div class="val" id="rWind">—</div></div>
+    </div>
+    <p class="status" id="status"></p>
+  </section>
+
+  <!-- 2 · CLASSIFY (CatID) -->
+  <section class="panel">
+    <h2 class="panel-title"><span class="dot"></span>Classify <span class="n">UCS CatID</span></h2>
+    <p class="blockhint">One file = one main CatID. Everything else present rides along as component CatIDs.</p>
+
+    <div class="group">
+      <label>Main category — sets the CatID</label>
+      <div class="chips" id="recentRow"></div>
+      <div class="row" style="margin-top:8px">
+        <select id="catSel"><option value="">Category…</option></select>
+        <select id="subSel" disabled><option value="">Subcategory…</option></select>
+      </div>
+      <div class="grouphint">Browse the whole UCS list, use a Recent chip, or search below.</div>
+    </div>
+
+    <div class="group">
+      <label>Search the full UCS list (753 codes) — select, add, repeat</label>
+      <div class="chips" id="searchMode" style="margin-bottom:7px">
+        <span class="chip" data-mode="main">Set as main</span>
+        <span class="chip on" data-mode="comp">＋ Add as component</span>
+      </div>
+      <input id="ucsSearch" placeholder="type a word or code — door, bell, water, wind…" autocomplete="off">
+      <div id="ucsResults" class="ucsresults"></div>
+    </div>
+
+    <div class="row" style="margin-top:14px">
+      <div><label>Category (UCS)</label><input id="f_cat" placeholder="AMBIENCE" autocomplete="off"></div>
+      <div><label>CatID</label><input id="f_catid" placeholder="from UCS list" autocomplete="off"></div>
+    </div>
+    <p class="hint">CatIDs are exact and must match the official list — <a href="https://universalcategorysystem.com/" target="_blank" rel="noopener">universalcategorysystem.com</a>.</p>
+
+    <!-- quick tap classifier -->
+    <div id="chipHost"></div>
+
+    <div class="fname"><b>Component CatIDs (also-present)</b><div class="chips" id="cidRow" style="margin-top:6px"><span class="cidnone">—</span></div></div>
+  </section>
+
+  <!-- 3 · DESCRIBE -->
+  <section class="panel">
+    <h2 class="panel-title"><span class="dot"></span>Describe <span class="n">FXName · keywords</span></h2>
+
+    <label>FXName / Description — the "what it is"</label>
+    <input id="f_desc" placeholder="e.g. Forest dawn chorus, distant stream, light wind" autocomplete="off">
+
+    <label>Keywords</label>
+    <input id="f_keys" placeholder="tap chips above, or type — calm, forest, dawn" autocomplete="off">
+
+    <div class="row">
+      <div><label>Subjects</label><input id="f_subj" placeholder="birds, water" autocomplete="off"></div>
+      <div><label>Mood / use</label><input id="f_mood" placeholder="calm, sleep" autocomplete="off"></div>
+    </div>
+
+    <label>Clean of (exclusions — buyers search this)</label>
+    <input id="f_excl" placeholder="no aircraft, no voices, no traffic" autocomplete="off">
+  </section>
+
+  <!-- 4 · NAMING BLOCKS -->
+  <section class="panel">
+    <h2 class="panel-title"><span class="dot"></span>Naming <span class="n">CreatorID · SourceID · UserData</span></h2>
+    <div class="row">
+      <div><label>Creator ID</label><input id="f_cid" placeholder="e.g. ABC" autocomplete="off"></div>
+      <div><label>Library / Source ID</label><input id="f_lib" placeholder="NordicForest" autocomplete="off"></div>
+    </div>
+    <label>User data (freeform tail — mic, take ID, anything)</label>
+    <input id="f_udata" placeholder="optional — e.g. MKH8040 or a unique number" autocomplete="off">
+    <p class="hint">Creator ID and Library are remembered on this device only.</p>
+  </section>
+
+  <!-- 5 · TECHNICAL -->
+  <section class="panel">
+    <h2 class="panel-title"><span class="dot"></span>Technical <span class="n">remembered on device</span></h2>
+
+    <label>Microphone</label>
+    <input id="f_mic" placeholder="e.g. Sennheiser MKH 40 + MKH 30" autocomplete="off">
+
+    <label>Technique</label>
+    <div class="chips" id="techRow"></div>
+    <input id="f_tech_other" placeholder="type technique…" autocomplete="off" style="display:none;margin-top:8px">
+
+    <label>Recorder</label>
+    <input id="f_rec" placeholder="e.g. Zoom F3" autocomplete="off">
+
+    <div class="row">
+      <div>
+        <label>Bit depth</label>
+        <div class="chips" id="depthRow"></div>
+      </div>
+      <div>
+        <label>Sample rate (kHz)</label>
+        <div class="chips" id="rateRow"></div>
+      </div>
+    </div>
+
+    <label>Perspective</label>
+    <div class="row-3" style="align-items:end">
+      <div>
+        <div class="chips" id="moveRow" style="margin-top:0"></div>
+      </div>
+      <div>
+        <div class="chips" id="envRow" style="margin-top:0"></div>
+      </div>
+      <div>
+        <input id="f_dist" type="number" inputmode="decimal" placeholder="metres" autocomplete="off">
+      </div>
+    </div>
+    <p class="hint">Interior / Exterior also sets the UCS UserCategory (-INT / -EXT) on the filename.</p>
+
+    <button class="subtle-btn" id="clearSetupBtn">↺ Clear remembered setup (mic, technique, format, IDs)</button>
+  </section>
+
+  <!-- 6 · NOTES + PREVIEW + SAVE -->
+  <section class="panel">
+    <h2 class="panel-title"><span class="dot"></span>Notes &amp; save</h2>
+    <label>Notes</label>
+    <textarea id="f_notes" placeholder="anything else worth remembering about the take"></textarea>
+
+    <div class="fname"><b>UCS filename preview</b><span id="fnamePrev">—</span></div>
+    <button class="save-btn" id="saveBtn">＋ Save log entry</button>
+  </section>
+
+  <!-- 7 · LOG + EXPORT -->
+  <section class="panel">
+    <h2 class="panel-title"><span class="dot"></span>Logged takes <span class="count" id="count">0</span></h2>
+    <div id="entries"><p class="empty">No entries yet. Capture conditions, classify, and save.</p></div>
+
+    <button class="export-btn" id="jsonBtn">⤓ Export JSON</button>
+    <button class="subtle-btn" id="showJsonBtn">⧉ Show JSON to copy (works everywhere)</button>
+    <button class="subtle-btn" id="importBtn">⤒ Import / restore from JSON</button>
+    <input type="file" id="importFile" accept="application/json,.json" style="display:none">
+    <p class="export-note">One canonical file — complete, with exact GPS, versioned. On iPhone the share sheet opens: choose <b>Save to Files</b> (into your session's METADATA folder) or <b>AirDrop</b>. If nothing happens, use <b>Show JSON to copy</b>. Import restores a log onto any device.</p>
+  </section>
+
+  <p class="foot">Captured on-device. Sun computed locally · weather via Open-Meteo · place via BigDataCloud. Nothing is uploaded. Export or AirDrop after each session as your safety copy.</p>
+</div>
+
+<!-- JSON copy overlay -->
+<div class="overlay" id="overlay">
+  <div class="sheet">
+    <h3>Field Log JSON</h3>
+    <p>Tap in the box, Select All, Copy — then paste into a file (or Notes). This always works, no share sheet needed.</p>
+    <textarea id="jsonBox" readonly spellcheck="false"></textarea>
+    <div class="sheet-row">
+      <button class="btn-primary" id="copyJsonBtn">Copy</button>
+      <button class="btn-ghost" id="closeOverlayBtn">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+const $=id=>document.getElementById(id);
+const val=id=>($(id)?$(id).value.trim():'');
+let lastCapture=null;      // latest conditions snapshot
+let memEntries=[];         // working copy (mirrors device storage)
+let primaryComp=null;      // "groupId:idx" of the dominant component
+let extraCids=[];          // secondary CatIDs added via search
+let searchMode='comp';     // 'main' sets main CatID; 'comp' adds a component
+const sel={technique:'',depth:'',rate:'',move:'',env:''};   // single-select button state
+const SCHEMA_VERSION="2", UCS_VERSION="8.2.1", APP_VERSION="3.0";
+const UCS=[["AIRBlow","AIR","BLOW","AIR"],["AIRBrst","AIR","BURST","AIR"],["AIRHiss","AIR","HISS","AIR"],["AIRMisc","AIR","MISC","AIR"],["AIRSuck","AIR","SUCTION","AIR"],["AERODoor","AIRCRAFT","DOOR","AERO"],["AEROHeli","AIRCRAFT","HELICOPTER","AERO"],["AEROInt","AIRCRAFT","INTERIOR","AERO"],["AEROJet","AIRCRAFT","JET","AERO"],["AEROMech","AIRCRAFT","MECHANISM","AERO"],["AEROMil","AIRCRAFT","MILITARY","AERO"],["AEROMisc","AIRCRAFT","MISC","AERO"],["AEROProp","AIRCRAFT","PROP","AERO"],["AERORadio","AIRCRAFT","RADIO CONTROLLED","AERO"],["AERORckt","AIRCRAFT","ROCKET","AERO"],["ALRMBell","ALARMS","BELL","ALRM"],["ALRMBuzr","ALARMS","BUZZER","ALRM"],["ALRMClok","ALARMS","CLOCK","ALRM"],["ALRMElec","ALARMS","ELECTRONIC","ALRM"],["ALRMMisc","ALARMS","MISC","ALRM"],["ALRMSirn","ALARMS","SIREN","ALRM"],["AMBAir","AMBIENCE","AIR","AMB"],["AMBAlpn","AMBIENCE","ALPINE","AMB"],["AMBAmus","AMBIENCE","AMUSEMENT","AMB"],["AMBBird","AMBIENCE","BIRDSONG","AMB"],["AMBCele","AMBIENCE","CELEBRATION","AMB"],["AMBCnst","AMBIENCE","CONSTRUCTION","AMB"],["AMBDsrt","AMBIENCE","DESERT","AMB"],["AMBDsgn","AMBIENCE","DESIGNED","AMB"],["AMBEmrg","AMBIENCE","EMERGENCY","AMB"],["AMBFant","AMBIENCE","FANTASY","AMB"],["AMBFarm","AMBIENCE","FARM","AMB"],["AMBForst","AMBIENCE","FOREST","AMB"],["AMBGras","AMBIENCE","GRASSLAND","AMB"],["AMBHist","AMBIENCE","HISTORICAL","AMB"],["AMBTech","AMBIENCE","HITECH","AMB"],["AMBHosp","AMBIENCE","HOSPITAL","AMB"],["AMBInd","AMBIENCE","INDUSTRIAL","AMB"],["AMBInsc","AMBIENCE","INSECT","AMB"],["AMBLake","AMBIENCE","LAKESIDE","AMB"],["AMBMrkt","AMBIENCE","MARKET","AMB"],["AMBMisc","AMBIENCE","MISC","AMB"],["AMBNaut","AMBIENCE","NAUTICAL","AMB"],["AMBOffc","AMBIENCE","OFFICE","AMB"],["AMBPark","AMBIENCE","PARK","AMB"],["AMBPrisn","AMBIENCE","PRISON","AMB"],["AMBPrtst","AMBIENCE","PROTEST","AMB"],["AMBPubl","AMBIENCE","PUBLIC PLACE","AMB"],["AMBRlgn","AMBIENCE","RELIGIOUS","AMB"],["AMBHome","AMBIENCE","RESIDENTIAL","AMB"],["AMBRest","AMBIENCE","RESTAURANT & BAR","AMB"],["AMBRoom","AMBIENCE","ROOM TONE","AMB"],["AMBRurl","AMBIENCE","RURAL","AMB"],["AMBSchl","AMBIENCE","SCHOOL","AMB"],["AMBSci","AMBIENCE","SCIFI","AMB"],["AMBSea","AMBIENCE","SEASIDE","AMB"],["AMBSprt","AMBIENCE","SPORT","AMB"],["AMBSubn","AMBIENCE","SUBURBAN","AMB"],["AMBSwmp","AMBIENCE","SWAMP","AMB"],["AMBTown","AMBIENCE","TOWN","AMB"],["AMBTraf","AMBIENCE","TRAFFIC","AMB"],["AMBTran","AMBIENCE","TRANSPORTATION","AMB"],["AMBTrop","AMBIENCE","TROPICAL","AMB"],["AMBTndra","AMBIENCE","TUNDRA","AMB"],["AMBUndr","AMBIENCE","UNDERGROUND","AMB"],["AMBUndwtr","AMBIENCE","UNDERWATER","AMB"],["AMBUrbn","AMBIENCE","URBAN","AMB"],["AMBWar","AMBIENCE","WARFARE","AMB"],["ANMLAmph","ANIMALS","AMPHIBIAN","ANML"],["ANMLAqua","ANIMALS","AQUATIC","ANML"],["ANMLBat","ANIMALS","BAT","ANML"],["ANMLCat","ANIMALS","CAT DOMESTIC","ANML"],["ANMLWcat","ANIMALS","CAT WILD","ANML"],["ANMLDog","ANIMALS","DOG","ANML"],["ANMLWdog","ANIMALS","DOG WILD","ANML"],["ANMLFarm","ANIMALS","FARM","ANML"],["ANMLHors","ANIMALS","HORSE","ANML"],["ANMLInsc","ANIMALS","INSECT","ANML"],["ANMLMisc","ANIMALS","MISC","ANML"],["ANMLPrim","ANIMALS","PRIMATE","ANML"],["ANMLRept","ANIMALS","REPTILE","ANML"],["ANMLRdnt","ANIMALS","RODENT","ANML"],["ANMLWild","ANIMALS","WILD","ANML"],["ADR","ARCHIVED","ADR","ADR"],["ASSET","ARCHIVED","ASSET","ASSET"],["BNCE","ARCHIVED","BOUNCE","BNCE"],["IR","ARCHIVED","IMPULSE RESPONSE","IR"],["LPGRP","ARCHIVED","LOOP GROUP","LPGRP"],["MIX","ARCHIVED","MIX","MIX"],["PFX","ARCHIVED","PFX","PFX"],["PROD","ARCHIVED","PRODUCTION","PROD"],["RAW","ARCHIVED","RAW","RAW"],["REF","ARCHIVED","REFERENCE","REF"],["SCNE","ARCHIVED","SCENE","SCNE"],["TEST","ARCHIVED","TEST TONE","TEST"],["TMARK","ARCHIVED","TRADEMARKED","TMARK"],["WIP","ARCHIVED","WORK IN PROGRESS","WIP"],["WTF","ARCHIVED","WTF","WTF"],["BEEPAppl","BEEPS","APPLIANCE","BEEP"],["BEEP","BEEPS","GENERAL","BEEP"],["BEEPLofi","BEEPS","LOFI","BEEP"],["BEEPMed","BEEPS","MEDICAL","BEEP"],["BEEPTimer","BEEPS","TIMER","BEEP"],["BEEPVeh","BEEPS","VEHICLE","BEEP"],["BELLAnml","BELLS","ANIMAL","BELL"],["BELLDoor","BELLS","DOORBELL","BELL"],["BELLGong","BELLS","GONG","BELL"],["BELLHand","BELLS","HANDBELL","BELL"],["BELLLrg","BELLS","LARGE","BELL"],["BELLMisc","BELLS","MISC","BELL"],["BIRDPrey","BIRDS","BIRD OF PREY","BIRD"],["BIRDCrow","BIRDS","CROW","BIRD"],["BIRDFowl","BIRDS","FOWL","BIRD"],["BIRDMisc","BIRDS","MISC","BIRD"],["BIRDSea","BIRDS","SEA","BIRD"],["BIRDSong","BIRDS","SONGBIRD","BIRD"],["BIRDTrop","BIRDS","TROPICAL","BIRD"],["BIRDWade","BIRDS","WADING","BIRD"],["BOATAir","BOATS","AIR BOAT","BOAT"],["BOATWash","BOATS","BOW WASH","BOAT"],["BOATDoor","BOATS","DOOR","BOAT"],["BOATElec","BOATS","ELECTRIC","BOAT"],["BOATFish","BOATS","FISHING","BOAT"],["BOATHorn","BOATS","HORN","BOAT"],["BOATInt","BOATS","INTERIOR","BOAT"],["BOATMech","BOATS","MECHANISM","BOAT"],["BOATMil","BOATS","MILITARY","BOAT"],["BOATMisc","BOATS","MISC","BOAT"],["BOATMotr","BOATS","MOTORBOAT","BOAT"],["BOATRace","BOATS","RACING","BOAT"],["BOATRow","BOATS","ROWBOAT","BOAT"],["BOATSail","BOATS","SAILBOAT","BOAT"],["BOATShip","BOATS","SHIP","BOAT"],["BOATStm","BOATS","STEAM","BOAT"],["BOATSub","BOATS","SUBMARINE","BOAT"],["BOATUndwtr","BOATS","UNDERWATER","BOAT"],["BLLTBy","BULLETS","BY","BLLT"],["BLLTImpt","BULLETS","IMPACT","BLLT"],["BLLTMisc","BULLETS","MISC","BLLT"],["BLLTRico","BULLETS","RICOCHET","BLLT"],["BLLTShel","BULLETS","SHELL","BLLT"],["TOONAnml","CARTOON","ANIMAL","TOON"],["TOONBoing","CARTOON","BOING","TOON"],["TOONClang","CARTOON","CLANG","TOON"],["TOONCreak","CARTOON","CREAK","TOON"],["TOONHorn","CARTOON","HORN","TOON"],["TOONImpt","CARTOON","IMPACT","TOON"],["TOONMach","CARTOON","MACHINE","TOON"],["TOONMisc","CARTOON","MISC","TOON"],["TOONMx","CARTOON","MUSICAL","TOON"],["TOONPluk","CARTOON","PLUCK","TOON"],["TOONPop","CARTOON","POP","TOON"],["TOONShake","CARTOON","SHAKE","TOON"],["TOONSplt","CARTOON","SPLAT","TOON"],["TOONSqk","CARTOON","SQUEAK","TOON"],["TOONStrch","CARTOON","STRETCH","TOON"],["TOONSwsh","CARTOON","SWISH","TOON"],["TOONTwang","CARTOON","TWANG","TOON"],["TOONVeh","CARTOON","VEHICLE","TOON"],["TOONVox","CARTOON","VOCAL","TOON"],["TOONWarb","CARTOON","WARBLE","TOON"],["TOONWhis","CARTOON","WHISTLE","TOON"],["TOONZip","CARTOON","ZIP","TOON"],["CERMBrk","CERAMICS","BREAK","CERM"],["CERMCrsh","CERAMICS","CRASH & DEBRIS","CERM"],["CERMFric","CERAMICS","FRICTION","CERM"],["CERMHndl","CERAMICS","HANDLE","CERM"],["CERMImpt","CERAMICS","IMPACT","CERM"],["CERMMisc","CERAMICS","MISC","CERM"],["CERMMvmt","CERAMICS","MOVEMENT","CERM"],["CERMTonl","CERAMICS","TONAL","CERM"],["CHAINBrk","CHAINS","BREAK","CHAIN"],["CHAINHndl","CHAINS","HANDLE","CHAIN"],["CHAINImpt","CHAINS","IMPACT","CHAIN"],["CHAINMisc","CHAINS","MISC","CHAIN"],["CHAINMvmt","CHAINS","MOVEMENT","CHAIN"],["CHEMAcid","CHEMICALS","ACID","CHEM"],["CHEMMisc","CHEMICALS","MISC","CHEM"],["CHEMReac","CHEMICALS","REACTION","CHEM"],["CLOCKChim","CLOCKS","CHIME","CLOCK"],["CLOCKMech","CLOCKS","MECHANICS","CLOCK"],["CLOCKMisc","CLOCKS","MISC","CLOCK"],["CLOCKTick","CLOCKS","TICK","CLOCK"],["CLOTHFlp","CLOTH","FLAP","CLOTH"],["CLOTHHndl","CLOTH","HANDLE","CLOTH"],["CLOTHImpt","CLOTH","IMPACT","CLOTH"],["CLOTHMisc","CLOTH","MISC","CLOTH"],["CLOTHMvmt","CLOTH","MOVEMENT","CLOTH"],["CLOTHRip","CLOTH","RIP","CLOTH"],["COMAv","COMMUNICATIONS","AUDIO VISUAL","COM"],["COMCam","COMMUNICATIONS","CAMERA","COM"],["COMCell","COMMUNICATIONS","CELLPHONE","COM"],["COMMic","COMMUNICATIONS","MICROPHONE","COM"],["COMMisc","COMMUNICATIONS","MISC","COM"],["COMPhono","COMMUNICATIONS","PHONOGRAPH","COM"],["COMRadio","COMMUNICATIONS","RADIO","COM"],["COMStatic","COMMUNICATIONS","STATIC","COM"],["COMTelm","COMMUNICATIONS","TELEMETRY","COM"],["COMTelph","COMMUNICATIONS","TELEPHONE","COM"],["COMTv","COMMUNICATIONS","TELEVISION","COM"],["COMTran","COMMUNICATIONS","TRANSCEIVER","COM"],["COMType","COMMUNICATIONS","TYPEWRITER","COM"],["CMPTDriv","COMPUTERS","HARD DRIVE","CMPT"],["CMPTKey","COMPUTERS","KEYBOARD & MOUSE","CMPT"],["CMPTMisc","COMPUTERS","MISC","CMPT"],["CREAAqua","CREATURES","AQUATIC","CREA"],["CREAAvian","CREATURES","AVIAN","CREA"],["CREABeast","CREATURES","BEAST","CREA"],["CREABlob","CREATURES","BLOB","CREA"],["CREADino","CREATURES","DINOSAUR","CREA"],["CREADrgn","CREATURES","DRAGON","CREA"],["CREAElem","CREATURES","ELEMENTAL","CREA"],["CREAEthr","CREATURES","ETHEREAL","CREA"],["CREAHmn","CREATURES","HUMANOID","CREA"],["CREAInsc","CREATURES","INSECTOID","CREA"],["CREAMisc","CREATURES","MISC","CREA"],["CREAMnstr","CREATURES","MONSTER","CREA"],["CREARept","CREATURES","REPTILIAN","CREA"],["CREASmall","CREATURES","SMALL","CREA"],["CREASrce","CREATURES","SOURCE","CREA"],["CRWDAngr","CROWDS","ANGRY","CRWD"],["CRWDApls","CROWDS","APPLAUSE","CRWD"],["CRWDBatl","CROWDS","BATTLE","CRWD"],["CRWDCele","CROWDS","CELEBRATION","CRWD"],["CRWDCheer","CROWDS","CHEERING","CRWD"],["CRWDChld","CROWDS","CHILDREN","CRWD"],["CRWDConv","CROWDS","CONVERSATION","CRWD"],["CRWDLaff","CROWDS","LAUGHTER","CRWD"],["CRWDLoop","CROWDS","LOOP GROUP","CRWD"],["CRWDMisc","CROWDS","MISC","CRWD"],["CRWDPanic","CROWDS","PANIC","CRWD"],["CRWDQuiet","CROWDS","QUIET","CRWD"],["CRWDReac","CROWDS","REACTION","CRWD"],["CRWDSing","CROWDS","SINGING","CRWD"],["CRWDSprt","CROWDS","SPORT","CRWD"],["CRWDWalla","CROWDS","WALLA","CRWD"],["DSGNBass","DESIGNED","BASS DIVE","DSGN"],["DSGNBoom","DESIGNED","BOOM","DSGN"],["DSGNBram","DESIGNED","BRAAM","DSGN"],["DSGNDist","DESIGNED","DISTORTION","DSGN"],["DSGNDron","DESIGNED","DRONE","DSGN"],["DSGNErie","DESIGNED","EERIE","DSGN"],["DSGNEthr","DESIGNED","ETHEREAL","DSGN"],["DSGNGran","DESIGNED","GRANULAR","DSGN"],["DSGNImpt","DESIGNED","IMPACT","DSGN"],["DSGNMisc","DESIGNED","MISC","DSGN"],["DSGNMorph","DESIGNED","MORPH","DSGN"],["DSGNRise","DESIGNED","RISER","DSGN"],["DSGNRmbl","DESIGNED","RUMBLE","DSGN"],["DSGNRythm","DESIGNED","RHYTHMIC","DSGN"],["DSGNSrce","DESIGNED","SOURCE","DSGN"],["DSGNStngr","DESIGNED","STINGER","DSGN"],["DSGNSynth","DESIGNED","SYNTHETIC","DSGN"],["DSGNTonl","DESIGNED","TONAL","DSGN"],["DSGNVocl","DESIGNED","VOCAL","DSGN"],["DSGNWhsh","DESIGNED","WHOOSH","DSGN"],["DESTRClpse","DESTRUCTION","COLLAPSE","DESTR"],["DESTRCrsh","DESTRUCTION","CRASH & DEBRIS","DESTR"],["DESTRMisc","DESTRUCTION","MISC","DESTR"],["DIRTCrsh","DIRT & SAND","CRASH & DEBRIS","DIRT"],["DIRTDust","DIRT & SAND","DUST","DIRT"],["DIRTHndl","DIRT & SAND","HANDLE","DIRT"],["DIRTImpt","DIRT & SAND","IMPACT","DIRT"],["DIRTMisc","DIRT & SAND","MISC","DIRT"],["DIRTMvmt","DIRT & SAND","MOVEMENT","DIRT"],["DIRTTonl","DIRT & SAND","TONAL","DIRT"],["DOORAntq","DOORS","ANTIQUE","DOOR"],["DOORAppl","DOORS","APPLIANCE","DOOR"],["DOORCab","DOORS","CABINET","DOOR"],["DOORComp","DOORS","COMPOSITE","DOOR"],["DOORCreak","DOORS","CREAK","DOOR"],["DOORDungn","DOORS","DUNGEON","DOOR"],["DOORElec","DOORS","ELECTRIC","DOOR"],["DOORGate","DOORS","GATE","DOOR"],["DOORGlas","DOORS","GLASS","DOOR"],["DOORHdwr","DOORS","HARDWARE","DOOR"],["DOORTech","DOORS","HITECH","DOOR"],["DOORHydr","DOORS","HYDRAULIC & PNEUMATIC","DOOR"],["DOORKnck","DOORS","KNOCK","DOOR"],["DOORMetl","DOORS","METAL","DOOR"],["DOORMisc","DOORS","MISC","DOOR"],["DOORPlas","DOORS","PLASTIC","DOOR"],["DOORPrisn","DOORS","PRISON","DOOR"],["DOORRevl","DOORS","REVOLVING","DOOR"],["DOORSlid","DOORS","SLIDING","DOOR"],["DOORSton","DOORS","STONE","DOOR"],["DOORSwng","DOORS","SWINGING","DOOR"],["DOORWood","DOORS","WOOD","DOOR"],["DRWRMetl","DRAWERS","METAL","DRWR"],["DRWRMisc","DRAWERS","MISC","DRWR"],["DRWRPlas","DRAWERS","PLASTIC","DRWR"],["DRWRWood","DRAWERS","WOOD","DRWR"],["ELECArc","ELECTRICITY","ARC","ELEC"],["ELECBuzz","ELECTRICITY","BUZZ & HUM","ELEC"],["ELECEmf","ELECTRICITY","ELECTROMAGNETIC","ELEC"],["ELECMisc","ELECTRICITY","MISC","ELEC"],["ELECSprk","ELECTRICITY","SPARKS","ELEC"],["ELECZap","ELECTRICITY","ZAP","ELEC"],["EQUIPBridle","EQUIPMENT","BRIDLE & TACK","EQUIP"],["EQUIPTech","EQUIPMENT","HITECH","EQUIP"],["EQUIPMisc","EQUIPMENT","MISC","EQUIP"],["EQUIPRec","EQUIPMENT","RECREATIONAL","EQUIP"],["EQUIPSprt","EQUIPMENT","SPORT","EQUIP"],["EQUIPTact","EQUIPMENT","TACTICAL","EQUIP"],["EXPLDsgn","EXPLOSIONS","DESIGNED","EXPL"],["EXPLMisc","EXPLOSIONS","MISC","EXPL"],["EXPLReal","EXPLOSIONS","REAL","EXPL"],["FARTDsgn","FARTS","DESIGNED","FART"],["FARTMisc","FARTS","MISC","FART"],["FARTReal","FARTS","REAL","FART"],["FGHTBf","FIGHT","BODYFALL","FGHT"],["FGHTClth","FIGHT","CLOTH","FGHT"],["FGHTGrab","FIGHT","GRAB","FGHT"],["FGHTImpt","FIGHT","IMPACT","FGHT"],["FGHTMisc","FIGHT","MISC","FGHT"],["FIREBurn","FIRE","BURNING","FIRE"],["FIREBrst","FIRE","BURST","FIRE"],["FIRECrkl","FIRE","CRACKLE","FIRE"],["FIREGas","FIRE","GAS","FIRE"],["FIREIgn","FIRE","IGNITE","FIRE"],["FIREMisc","FIRE","MISC","FIRE"],["FIRESizz","FIRE","SIZZLE","FIRE"],["FIRETrch","FIRE","TORCH","FIRE"],["FIRETurb","FIRE","TURBULENT","FIRE"],["FIREWhsh","FIRE","WHOOSH","FIRE"],["FRWKComr","FIREWORKS","COMMERCIAL","FRWK"],["FRWKMisc","FIREWORKS","MISC","FRWK"],["FRWKRec","FIREWORKS","RECREATIONAL","FRWK"],["FOLYClth","FOLEY","CLOTH","FOLY"],["FOLYFeet","FOLEY","FEET","FOLY"],["FOLYHand","FOLEY","HANDS","FOLY"],["FOLYMisc","FOLEY","MISC","FOLY"],["FOLYProp","FOLEY","PROP","FOLY"],["FOODCook","FOOD & DRINK","COOKING","FOOD"],["FOODDrnk","FOOD & DRINK","DRINKING","FOOD"],["FOODEat","FOOD & DRINK","EATING","FOOD"],["FOODGware","FOOD & DRINK","GLASSWARE","FOOD"],["FOODIngr","FOOD & DRINK","INGREDIENTS","FOOD"],["FOODKware","FOOD & DRINK","KITCHENWARE","FOOD"],["FOODMisc","FOOD & DRINK","MISC","FOOD"],["FOODPour","FOOD & DRINK","POUR","FOOD"],["FOODTware","FOOD & DRINK","TABLEWARE","FOOD"],["FEETAnml","FOOTSTEPS","ANIMAL","FEET"],["FEETCrea","FOOTSTEPS","CREATURE","FEET"],["FEETHors","FOOTSTEPS","HORSE","FEET"],["FEETHmn","FOOTSTEPS","HUMAN","FEET"],["FEETMisc","FOOTSTEPS","MISC","FEET"],["GAMEArcd","GAMES","ARCADE","GAME"],["GAMEBoard","GAMES","BOARD","GAME"],["GAMECas","GAMES","CASINO","GAME"],["GAMEMisc","GAMES","MISC","GAME"],["GAMEVideo","GAMES","VIDEO","GAME"],["GEOFuma","GEOTHERMAL","FUMAROLE","GEO"],["GEOGeyser","GEOTHERMAL","GEYSER","GEO"],["GEOLava","GEOTHERMAL","LAVA","GEO"],["GEOMisc","GEOTHERMAL","MISC","GEO"],["GEOMudpot","GEOTHERMAL","MUD POTS","GEO"],["GLASBrk","GLASS","BREAK","GLAS"],["GLASCrsh","GLASS","CRASH & DEBRIS","GLAS"],["GLASFric","GLASS","FRICTION","GLAS"],["GLASHndl","GLASS","HANDLE","GLAS"],["GLASImpt","GLASS","IMPACT","GLAS"],["GLASMisc","GLASS","MISC","GLAS"],["GLASMvmt","GLASS","MOVEMENT","GLAS"],["GLASTonl","GLASS","TONAL","GLAS"],["GOREBlood","GORE","BLOOD","GORE"],["GOREBone","GORE","BONE","GORE"],["GOREBurn","GORE","BURN","GORE"],["GOREFlsh","GORE","FLESH","GORE"],["GOREMisc","GORE","MISC","GORE"],["GOREOoze","GORE","OOZE","GORE"],["GORESrce","GORE","SOURCE","GORE"],["GORESplt","GORE","SPLAT","GORE"],["GORESqsh","GORE","SQUISH","GORE"],["GOREStab","GORE","STAB","GORE"],["GUNAntq","GUNS","ANTIQUE","GUN"],["GUNArtl","GUNS","ARTILLERY","GUN"],["GUNAuto","GUNS","AUTOMATIC","GUN"],["GUNCano","GUNS","CANNON","GUN"],["GUNHndl","GUNS","HANDLE","GUN"],["GUNTech","GUNS","HITECH","GUN"],["GUNMech","GUNS","MECHANISM","GUN"],["GUNMisc","GUNS","MISC","GUN"],["GUNPis","GUNS","PISTOL","GUN"],["GUNRif","GUNS","RIFLE","GUN"],["GUNShotg","GUNS","SHOTGUN","GUN"],["GUNSupr","GUNS","SUPPRESSED","GUN"],["HORNAir","HORNS","AIR POWERED","HORN"],["HORNCele","HORNS","CELEBRATION","HORN"],["HORNMisc","HORNS","MISC","HORN"],["HORNTrad","HORNS","TRADITIONAL","HORN"],["HMNBlow","HUMAN","BLOW","HMN"],["HMNBrth","HUMAN","BREATH","HMN"],["HMNBurp","HUMAN","BURP","HMN"],["HMNCough","HUMAN","COUGH","HMN"],["HMNHart","HUMAN","HEARTBEAT","HMN"],["HMNKiss","HUMAN","KISS","HMN"],["HMNMisc","HUMAN","MISC","HMN"],["HMNPee","HUMAN","PEE","HMN"],["HMNSkin","HUMAN","SKIN","HMN"],["HMNSneez","HUMAN","SNEEZE","HMN"],["HMNSniff","HUMAN","SNIFF","HMN"],["HMNSnor","HUMAN","SNORE","HMN"],["HMNSpit","HUMAN","SPIT","HMN"],["HMNVomit","HUMAN","VOMIT","HMN"],["ICEBrk","ICE","BREAK","ICE"],["ICECrsh","ICE","CRASH & DEBRIS","ICE"],["ICEFric","ICE","FRICTION","ICE"],["ICEHndl","ICE","HANDLE","ICE"],["ICEImpt","ICE","IMPACT","ICE"],["ICEMisc","ICE","MISC","ICE"],["ICEMvmt","ICE","MOVEMENT","ICE"],["ICETonl","ICE","TONAL","ICE"],["LASRBeam","LASERS","BEAM","LASR"],["LASRGun","LASERS","GUN","LASR"],["LASRImpt","LASERS","IMPACT","LASR"],["LASRMisc","LASERS","MISC","LASR"],["LETHRCreak","LEATHER","CREAK","LETHR"],["LETHRHndl","LEATHER","HANDLE","LETHR"],["LETHRImpt","LEATHER","IMPACT","LETHR"],["LETHRMisc","LEATHER","MISC","LETHR"],["LETHRMvmt","LEATHER","MOVEMENT","LETHR"],["LIQBubl","LIQUID & MUD","BUBBLES","LIQ"],["LIQImpt","LIQUID & MUD","IMPACT","LIQ"],["LIQMisc","LIQUID & MUD","MISC","LIQ"],["LIQMvmt","LIQUID & MUD","MOVEMENT","LIQ"],["LIQSuct","LIQUID & MUD","SUCTION","LIQ"],["MACHAmus","MACHINES","AMUSEMENT","MACH"],["MACHAntq","MACHINES","ANTIQUE","MACH"],["MACHAppl","MACHINES","APPLIANCE","MACH"],["MACHCnst","MACHINES","CONSTRUCTION","MACH"],["MACHElev","MACHINES","ELEVATOR","MACH"],["MACHEscl","MACHINES","ESCALATOR","MACH"],["MACHFan","MACHINES","FAN","MACH"],["MACHGrdn","MACHINES","GARDEN","MACH"],["MACHGym","MACHINES","GYM","MACH"],["MACHTech","MACHINES","HITECH","MACH"],["MACHHvac","MACHINES","HVAC","MACH"],["MACHInd","MACHINES","INDUSTRIAL","MACH"],["MACHMech","MACHINES","MECHANISM","MACH"],["MACHMed","MACHINES","MEDICAL","MACH"],["MACHMisc","MACHINES","MISC","MACH"],["MACHOffc","MACHINES","OFFICE","MACH"],["MACHPump","MACHINES","PUMP","MACH"],["MAGAngl","MAGIC","ANGELIC","MAG"],["MAGElem","MAGIC","ELEMENTAL","MAG"],["MAGEvil","MAGIC","EVIL","MAG"],["MAGMisc","MAGIC","MISC","MAG"],["MAGPoof","MAGIC","POOF","MAG"],["MAGShim","MAGIC","SHIMMER","MAG"],["MAGSpel","MAGIC","SPELL","MAG"],["MECHClik","MECHANICAL","CLICK","MECH"],["MECHGear","MECHANICAL","GEARS","MECH"],["MECHHydr","MECHANICAL","HYDRAULIC & PNEUMATIC","MECH"],["MECHLtch","MECHANICAL","LATCH","MECH"],["MECHLvr","MECHANICAL","LEVER","MECH"],["MECHLock","MECHANICAL","LOCK","MECH"],["MECHMisc","MECHANICAL","MISC","MECH"],["MECHPuly","MECHANICAL","PULLEY","MECH"],["MECHRtch","MECHANICAL","RATCHET","MECH"],["MECHRelay","MECHANICAL","RELAY","MECH"],["MECHRolr","MECHANICAL","ROLLER","MECH"],["MECHSwtch","MECHANICAL","SWITCH","MECH"],["METLBrk","METAL","BREAK","METL"],["METLCrsh","METAL","CRASH & DEBRIS","METL"],["METLFric","METAL","FRICTION","METL"],["METLHndl","METAL","HANDLE","METL"],["METLImpt","METAL","IMPACT","METL"],["METLMisc","METAL","MISC","METL"],["METLMvmt","METAL","MOVEMENT","METL"],["METLTonl","METAL","TONAL","METL"],["MOTRAntq","MOTORS","ANTIQUE","MOTR"],["MOTRComb","MOTORS","COMBUSTION","MOTR"],["MOTRElec","MOTORS","ELECTRIC","MOTR"],["MOTRMisc","MOTORS","MISC","MOTR"],["MOTRSrvo","MOTORS","SERVO","MOTR"],["MOTRTurb","MOTORS","TURBINE","MOTR"],["MOVEActv","MOVEMENT","ACTIVITY","MOVE"],["MOVEAnml","MOVEMENT","ANIMAL","MOVE"],["MOVECrea","MOVEMENT","CREATURE","MOVE"],["MOVECrwd","MOVEMENT","CROWD","MOVE"],["MOVEHmn","MOVEMENT","HUMAN","MOVE"],["MOVEInsc","MOVEMENT","INSECT","MOVE"],["MOVEMisc","MOVEMENT","MISC","MOVE"],["MOVEPres","MOVEMENT","PRESENCE","MOVE"],["MUSCBell","MUSICAL","BELLS","MUSC"],["MUSCBrass","MUSICAL","BRASS","MUSC"],["MUSCChim","MUSICAL","CHIME","MUSC"],["MUSCChor","MUSICAL","CHORAL","MUSC"],["MUSCExpr","MUSICAL","EXPERIMENTAL","MUSC"],["MUSCInst","MUSICAL","INSTRUMENT","MUSC"],["MUSCKeyd","MUSICAL","KEYED","MUSC"],["MUSCLoop","MUSICAL","LOOP","MUSC"],["MUSCMisc","MUSICAL","MISC","MUSC"],["MUSCPerc","MUSICAL","PERCUSSION","MUSC"],["MUSCTnprc","MUSICAL","PERCUSSION TUNED","MUSC"],["MUSCPrfm","MUSICAL","PERFORMANCE","MUSC"],["MUSCPluck","MUSICAL","PLUCKED","MUSC"],["MUSCSmpl","MUSICAL","SAMPLE","MUSC"],["MUSCShake","MUSICAL","SHAKEN","MUSC"],["MUSCSong","MUSICAL","SONG & PHRASE","MUSC"],["MUSCStngr","MUSICAL","STINGER","MUSC"],["MUSCStr","MUSICAL","STRINGED","MUSC"],["MUSCSynth","MUSICAL","SYNTHESIZED","MUSC"],["MUSCToy","MUSICAL","TOY","MUSC"],["MUSCWind","MUSICAL","WOODWIND","MUSC"],["NATDAval","NATURAL DISASTER","AVALANCHE","NATD"],["NATDQuak","NATURAL DISASTER","EARTHQUAKE","NATD"],["NATDMisc","NATURAL DISASTER","MISC","NATD"],["NATDTorn","NATURAL DISASTER","TORNADO","NATD"],["NATDTsun","NATURAL DISASTER","TSUNAMI","NATD"],["NATDThyp","NATURAL DISASTER","TYPHOON","NATD"],["NATDVolc","NATURAL DISASTER","VOLCANO","NATD"],["OBJBag","OBJECTS","BAG","OBJ"],["OBJBook","OBJECTS","BOOK","OBJ"],["OBJCoin","OBJECTS","COIN","OBJ"],["OBJCont","OBJECTS","CONTAINER","OBJ"],["OBJFash","OBJECTS","FASHION","OBJ"],["OBJFurn","OBJECTS","FURNITURE","OBJ"],["OBJGrdn","OBJECTS","GARDEN","OBJ"],["OBJGym","OBJECTS","GYM","OBJ"],["OBJHsehld","OBJECTS","HOUSEHOLD","OBJ"],["OBJJewl","OBJECTS","JEWELRY","OBJ"],["OBJKey","OBJECTS","KEYS","OBJ"],["OBJLug","OBJECTS","LUGGAGE","OBJ"],["OBJMed","OBJECTS","MEDICAL","OBJ"],["OBJMisc","OBJECTS","MISC","OBJ"],["OBJOffc","OBJECTS","OFFICE","OBJ"],["OBJPack","OBJECTS","PACKAGING","OBJ"],["OBJTape","OBJECTS","TAPE","OBJ"],["OBJUmbr","OBJECTS","UMBRELLA","OBJ"],["OBJWhled","OBJECTS","WHEELED","OBJ"],["OBJWrite","OBJECTS","WRITING","OBJ"],["OBJZipr","OBJECTS","ZIPPER","OBJ"],["PAPRFltr","PAPER","FLUTTER","PAPR"],["PAPRFric","PAPER","FRICTION","PAPR"],["PAPRHndl","PAPER","HANDLE","PAPR"],["PAPRImpt","PAPER","IMPACT","PAPR"],["PAPRMisc","PAPER","MISC","PAPR"],["PAPRRip","PAPER","RIP","PAPR"],["PAPRTonl","PAPER","TONAL","PAPR"],["PLASBrk","PLASTIC","BREAK","PLAS"],["PLASCrsh","PLASTIC","CRASH & DEBRIS","PLAS"],["PLASFric","PLASTIC","FRICTION","PLAS"],["PLASHndl","PLASTIC","HANDLE","PLAS"],["PLASImpt","PLASTIC","IMPACT","PLAS"],["PLASMisc","PLASTIC","MISC","PLAS"],["PLASMvmt","PLASTIC","MOVEMENT","PLAS"],["PLASTonl","PLASTIC","TONAL","PLAS"],["RAINClth","RAIN","CLOTH","RAIN"],["RAINConc","RAIN","CONCRETE","RAIN"],["RAIN","RAIN","GENERAL","RAIN"],["RAINGlas","RAIN","GLASS","RAIN"],["RAINInt","RAIN","INTERIOR","RAIN"],["RAINMetl","RAIN","METAL","RAIN"],["RAINPlas","RAIN","PLASTIC","RAIN"],["RAINVege","RAIN","VEGETATION","RAIN"],["RAINWatr","RAIN","WATER","RAIN"],["RAINWood","RAIN","WOOD","RAIN"],["ROBTMisc","ROBOTS","MISC","ROBT"],["ROBTMvmt","ROBOTS","MOVEMENT","ROBT"],["ROBTVox","ROBOTS","VOCAL","ROBT"],["ROCKBrk","ROCKS","BREAK","ROCK"],["ROCKCrsh","ROCKS","CRASH & DEBRIS","ROCK"],["ROCKFric","ROCKS","FRICTION","ROCK"],["ROCKHndl","ROCKS","HANDLE","ROCK"],["ROCKImpt","ROCKS","IMPACT","ROCK"],["ROCKMisc","ROCKS","MISC","ROCK"],["ROCKMvmt","ROCKS","MOVEMENT","ROCK"],["ROCKTonl","ROCKS","TONAL","ROCK"],["ROPECreak","ROPE","CREAK","ROPE"],["ROPEHndl","ROPE","HANDLE","ROPE"],["ROPEImpt","ROPE","IMPACT","ROPE"],["ROPEMisc","ROPE","MISC","ROPE"],["ROPEMvmt","ROPE","MOVEMENT","ROPE"],["RUBRCrsh","RUBBER","CRASH & DEBRIS","RUBR"],["RUBRFric","RUBBER","FRICTION","RUBR"],["RUBRHndl","RUBBER","HANDLE","RUBR"],["RUBRImpt","RUBBER","IMPACT","RUBR"],["RUBRMisc","RUBBER","MISC","RUBR"],["RUBRMvmt","RUBBER","MOVEMENT","RUBR"],["RUBRTonl","RUBBER","TONAL","RUBR"],["SCIAlrm","SCIFI","ALARM","SCI"],["SCICmpt","SCIFI","COMPUTER","SCI"],["SCIDoor","SCIFI","DOOR","SCI"],["SCIEnrg","SCIFI","ENERGY","SCI"],["SCIImpt","SCIFI","IMPACT","SCI"],["SCIMach","SCIFI","MACHINE","SCI"],["SCIMech","SCIFI","MECHANISM","SCI"],["SCIMisc","SCIFI","MISC","SCI"],["SCIRetro","SCIFI","RETRO","SCI"],["SCIShip","SCIFI","SPACESHIP","SCI"],["SCIVeh","SCIFI","VEHICLE","SCI"],["SCIWeap","SCIFI","WEAPON","SCI"],["SNOWCrsh","SNOW","CRASH & DEBRIS","SNOW"],["SNOWFric","SNOW","FRICTION","SNOW"],["SNOWHndl","SNOW","HANDLE","SNOW"],["SNOWImpt","SNOW","IMPACT","SNOW"],["SNOWMisc","SNOW","MISC","SNOW"],["SNOWMvmt","SNOW","MOVEMENT","SNOW"],["SPRTCourt","SPORTS","COURT","SPRT"],["SPRTField","SPORTS","FIELD","SPRT"],["SPRTGym","SPORTS","GYM","SPRT"],["SPRTIndor","SPORTS","INDOOR","SPRT"],["SPRTMisc","SPORTS","MISC","SPRT"],["SPRTSkate","SPORTS","SKATE","SPRT"],["SPRTTrck","SPORTS","TRACK & FIELD","SPRT"],["SPRTWatr","SPORTS","WATER","SPRT"],["SPRTWntr","SPORTS","WINTER","SPRT"],["SWSH","SWOOSHES","SWISH","SWSH"],["WHSH","SWOOSHES","WHOOSH","WHSH"],["TOOLGrdn","TOOLS","GARDEN","TOOL"],["TOOLHand","TOOLS","HAND","TOOL"],["TOOLMisc","TOOLS","MISC","TOOL"],["TOOLPneu","TOOLS","PNEUMATIC","TOOL"],["TOOLPowr","TOOLS","POWER","TOOL"],["TOYElec","TOYS","ELECTRONIC","TOY"],["TOYMech","TOYS","MECHANICAL","TOY"],["TOYMisc","TOYS","MISC","TOY"],["TRNBrake","TRAINS","BRAKE","TRN"],["TRNClak","TRAINS","CLACK","TRN"],["TRNDoor","TRAINS","DOOR","TRN"],["TRNDiesl","TRAINS","DIESEL","TRN"],["TRNElec","TRAINS","ELECTRIC","TRN"],["TRNHspd","TRAINS","HIGH SPEED","TRN"],["TRNHorn","TRAINS","HORN","TRN"],["TRNInt","TRAINS","INTERIOR","TRN"],["TRNMech","TRAINS","MECHANISM","TRN"],["TRNMisc","TRAINS","MISC","TRN"],["TRNSteam","TRAINS","STEAM","TRN"],["TRNSbwy","TRAINS","SUBWAY","TRN"],["TRNTram","TRAINS","TRAM","TRN"],["UIAlert","USER INTERFACE","ALERT","UI"],["UIBeep","USER INTERFACE","BEEP","UI"],["UIClick","USER INTERFACE","CLICK","UI"],["UIData","USER INTERFACE","DATA","UI"],["UIGlitch","USER INTERFACE","GLITCH","UI"],["UIMisc","USER INTERFACE","MISC","UI"],["UIMvmt","USER INTERFACE","MOTION","UI"],["VEGEGras","VEGETATION","GRASS","VEGE"],["VEGELeaf","VEGETATION","LEAVES","VEGE"],["VEGEMisc","VEGETATION","MISC","VEGE"],["VEGETree","VEGETATION","TREE","VEGE"],["VEHAlrm","VEHICLES","ALARM","VEH"],["VEHAntq","VEHICLES","ANTIQUE","VEH"],["VEHAtv","VEHICLES","ATV","VEH"],["VEHBike","VEHICLES","BICYCLE","VEH"],["VEHBrake","VEHICLES","BRAKE","VEH"],["VEHBus","VEHICLES","BUS","VEH"],["VEHCar","VEHICLES","CAR","VEH"],["VEHCnst","VEHICLES","CONSTRUCTION","VEH"],["VEHDoor","VEHICLES","DOOR","VEH"],["VEHElec","VEHICLES","ELECTRIC","VEH"],["VEHEmrg","VEHICLES","EMERGENCY","VEH"],["VEHFarm","VEHICLES","FARM","VEH"],["VEHFrght","VEHICLES","FREIGHT","VEH"],["VEHBy","VEHICLES","GENERIC BY","VEH"],["VEHHorn","VEHICLES","HORN","VEH"],["VEHInt","VEHICLES","INTERIOR","VEH"],["VEHJalop","VEHICLES","JALOPY","VEH"],["VEHMech","VEHICLES","MECHANISM","VEH"],["VEHMil","VEHICLES","MILITARY","VEH"],["VEHMisc","VEHICLES","MISC","VEH"],["VEHMoto","VEHICLES","MOTORCYCLE","VEH"],["VEHRace","VEHICLES","RACING","VEH"],["VEHSirn","VEHICLES","SIREN","VEH"],["VEHSkid","VEHICLES","SKID","VEH"],["VEHSusp","VEHICLES","SUSPENSION","VEH"],["VEHTire","VEHICLES","TIRE","VEH"],["VEHTruck","VEHICLES","TRUCK VAN & SUV","VEH"],["VEHUtil","VEHICLES","UTILITY","VEH"],["VEHWagn","VEHICLES","WAGON","VEH"],["VEHWndw","VEHICLES","WINDOW","VEH"],["VOXAlien","VOICES","ALIEN","VOX"],["VOXBaby","VOICES","BABY","VOX"],["VOXCheer","VOICES","CHEER","VOX"],["VOXChld","VOICES","CHILD","VOX"],["VOXCry","VOICES","CRYING","VOX"],["VOXEfrt","VOICES","EFFORTS","VOX"],["VOXFem","VOICES","FEMALE","VOX"],["VOXFutz","VOICES","FUTZED","VOX"],["VOXHist","VOICES","HISTORICAL","VOX"],["VOXLaff","VOICES","LAUGH","VOX"],["VOXMale","VOICES","MALE","VOX"],["VOXMisc","VOICES","MISC","VOX"],["VOXReac","VOICES","REACTION","VOX"],["VOXScrm","VOICES","SCREAM","VOX"],["VOXSing","VOICES","SINGING","VOX"],["VOXWhsp","VOICES","WHISPER","VOX"],["WATRBubl","WATER","BUBBLES","WATR"],["WATRDran","WATER","DRAIN","WATR"],["WATRDrip","WATER","DRIP","WATR"],["WATRFizz","WATER","FIZZ","WATR"],["WATRFlow","WATER","FLOW","WATR"],["WATRFoun","WATER","FOUNTAIN","WATR"],["WATRImpt","WATER","IMPACT","WATR"],["WATRLap","WATER","LAP","WATR"],["WATRMisc","WATER","MISC","WATR"],["WATRMvmt","WATER","MOVEMENT","WATR"],["WATRPlmb","WATER","PLUMBING","WATR"],["WATRPour","WATER","POUR","WATR"],["WATRSplsh","WATER","SPLASH","WATR"],["WATRSpray","WATER","SPRAY","WATR"],["WATRStm","WATER","STEAM","WATR"],["WATRSurf","WATER","SURF","WATR"],["WATRTurb","WATER","TURBULENT","WATR"],["WATRUndwtr","WATER","UNDERWATER","WATR"],["WATRFall","WATER","WATERFALL","WATR"],["WATRWave","WATER","WAVE","WATR"],["WEAPArmr","WEAPONS","ARMOR","WEAP"],["WEAPArro","WEAPONS","ARROW","WEAP"],["WEAPAxe","WEAPONS","AXE","WEAP"],["WEAPBlnt","WEAPONS","BLUNT","WEAP"],["WEAPBow","WEAPONS","BOW","WEAP"],["WEAPKnif","WEAPONS","KNIFE","WEAP"],["WEAPMisc","WEAPONS","MISC","WEAP"],["WEAPPole","WEAPONS","POLEARM","WEAP"],["WEAPSiege","WEAPONS","SIEGE","WEAP"],["WEAPSwrd","WEAPONS","SWORD","WEAP"],["WEAPWhip","WEAPONS","WHIP","WEAP"],["HAIL","WEATHER","HAIL","HAIL"],["WTHR","WEATHER","MISC","WTHR"],["STORM","WEATHER","STORM","STORM"],["THUN","WEATHER","THUNDER","THUN"],["WHSTHmn","WHISTLES","HUMAN","WHST"],["WHSTMech","WHISTLES","MECHANICAL","WHST"],["WHSTMisc","WHISTLES","MISC","WHST"],["WINDDsgn","WIND","DESIGNED","WIND"],["WIND","WIND","GENERAL","WIND"],["WINDGust","WIND","GUST","WIND"],["WINDInt","WIND","INTERIOR","WIND"],["WINDTonl","WIND","TONAL","WIND"],["WINDTurb","WIND","TURBULENT","WIND"],["WINDVege","WIND","VEGETATION","WIND"],["WNDWCover","WINDOWS","COVERING","WNDW"],["WNDWHdwr","WINDOWS","HARDWARE","WNDW"],["WNDWKnck","WINDOWS","KNOCK","WNDW"],["WNDWMetl","WINDOWS","METAL","WNDW"],["WNDWMisc","WINDOWS","MISC","WNDW"],["WNDWPlas","WINDOWS","PLASTIC","WNDW"],["WNDWWood","WINDOWS","WOOD","WNDW"],["WINGBird","WINGS","BIRD","WING"],["WINGCrea","WINGS","CREATURE","WING"],["WINGInsc","WINGS","INSECT","WING"],["WINGMisc","WINGS","MISC","WING"],["WOODBrk","WOOD","BREAK","WOOD"],["WOODCrsh","WOOD","CRASH & DEBRIS","WOOD"],["WOODFric","WOOD","FRICTION","WOOD"],["WOODHndl","WOOD","HANDLE","WOOD"],["WOODImpt","WOOD","IMPACT","WOOD"],["WOODMisc","WOOD","MISC","WOOD"],["WOODMvmt","WOOD","MOVEMENT","WOOD"],["WOODTonl","WOOD","TONAL","WOOD"]];
+
+/* ---------- persistence (localStorage; on-device only) ---------- */
+async function loadEntries(){
+  try{ const v=localStorage.getItem('fieldlog_entries'); return v?JSON.parse(v):[]; }catch(e){ return []; }
+}
+async function persist(){
+  try{ localStorage.setItem('fieldlog_entries', JSON.stringify(memEntries)); }
+  catch(e){ setStatus('Could not save to device storage (full or blocked).',true); }
+}
+/* sticky setup = hardware + identity, remembered on THIS device only (never in the shared file) */
+function loadSetup(){ try{ const v=localStorage.getItem('fieldlog_setup'); return v?JSON.parse(v):null; }catch(e){ return null; } }
+function saveSetup(){
+  const s={ microphone:val('f_mic'), recorder:val('f_rec'), creator_id:val('f_cid'),
+            library:val('f_lib'), technique:sel.technique, technique_other:val('f_tech_other'),
+            depth:sel.depth, rate:sel.rate };
+  try{ localStorage.setItem('fieldlog_setup', JSON.stringify(s)); }catch(e){}
+}
+
+/* ---------- sun position (NOAA-style approximation) ---------- */
+function sunInfo(date,lat,lon){
+  const rad=Math.PI/180, deg=180/Math.PI;
+  const jd=date.getTime()/86400000 + 2440587.5;
+  const d=jd-2451545.0;
+  const g=(357.529+0.98560028*d)*rad;
+  const q=(280.459+0.98564736*d)*rad;
+  const L=q+(1.915*Math.sin(g)+0.020*Math.sin(2*g))*rad;
+  const e=(23.439-0.00000036*d)*rad;
+  const dec=Math.asin(Math.sin(e)*Math.sin(L));
+  const RA=Math.atan2(Math.cos(e)*Math.sin(L),Math.cos(L));
+  let GMST=(18.697374558+24.06570982441908*d)%24; if(GMST<0)GMST+=24;
+  let H=((GMST*15+lon)*rad)-RA;
+  H=Math.atan2(Math.sin(H),Math.cos(H));
+  const latr=lat*rad;
+  const alt=Math.asin(Math.sin(latr)*Math.sin(dec)+Math.cos(latr)*Math.cos(dec)*Math.cos(H))*deg;
+  return {alt, rising:H<0};
+}
+function sunPhase(alt,rising){
+  const s=rising?'rising':'setting';
+  if(alt>=6) return 'Daylight';
+  if(alt>=0) return 'Golden hour ('+s+')';
+  if(alt>=-6) return 'Blue hour ('+s+')';
+  if(alt>=-12) return 'Nautical twilight';
+  if(alt>=-18) return 'Astronomical twilight';
+  return 'Night';
+}
+function seasonOf(date,lat){
+  const m=date.getMonth();
+  const north=['Winter','Winter','Spring','Spring','Spring','Summer','Summer','Summer','Autumn','Autumn','Autumn','Winter'][m];
+  if(lat>=0) return north;
+  const flip={Winter:'Summer',Summer:'Winter',Spring:'Autumn',Autumn:'Spring'};
+  return flip[north];
+}
+
+/* ---------- weather helpers ---------- */
+const WMO={0:'Clear sky',1:'Mainly clear',2:'Partly cloudy',3:'Overcast',45:'Fog',48:'Rime fog',
+51:'Light drizzle',53:'Drizzle',55:'Dense drizzle',56:'Freezing drizzle',57:'Freezing drizzle',
+61:'Light rain',63:'Rain',65:'Heavy rain',66:'Freezing rain',67:'Freezing rain',
+71:'Light snow',73:'Snow',75:'Heavy snow',77:'Snow grains',
+80:'Light showers',81:'Showers',82:'Violent showers',85:'Snow showers',86:'Snow showers',
+95:'Thunderstorm',96:'Thunderstorm + hail',99:'Thunderstorm + hail'};
+function compass(deg){const d=['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];return d[Math.round(deg/22.5)%16];}
+
+/* ---------- token helpers (chips edit comma-separated fields) ---------- */
+function tokensOf(s){ return (s||'').split(',').map(x=>x.trim()).filter(Boolean); }
+function getTokens(field){ return tokensOf($(field).value); }
+function setTokens(field,arr){ $(field).value=arr.join(', '); }
+function hasToken(field,tok){ return getTokens(field).map(t=>t.toLowerCase()).includes(String(tok).toLowerCase()); }
+function addToken(field,tok){ const a=getTokens(field); if(!a.map(x=>x.toLowerCase()).includes(String(tok).toLowerCase())){ a.push(tok); setTokens(field,a);} }
+function removeToken(field,tok){ setTokens(field, getTokens(field).filter(t=>t.toLowerCase()!==String(tok).toLowerCase())); }
+
+/* ---------- quick tap classifier ---------- */
+const CHIP_GROUPS=[
+  { id:'comp', label:"What's in it  (tap ★ for the dominant sound)", field:'f_keys', type:'multi', primary:true, chips:[
+      {t:'Birdsong',  tokens:['birdsong'],             subj:['birds'], cat:'BIRDS',    cid:'BIRDSong'},
+      {t:'Stream',    tokens:['stream','running water'],subj:['water'], cat:'WATER',    cid:'WATRFlow'},
+      {t:'Waves',     tokens:['waves','surf'],          subj:['sea'],   cat:'WATER',    cid:'WATRSurf'},
+      {t:'Wind',      tokens:['wind'],                  cat:'WIND',     cid:'WIND'},
+      {t:'Rain',      tokens:['rain'],                  cat:'RAIN',     cid:'RAIN'},
+      {t:'Insects',   tokens:['insects'],               cat:'ANIMALS',  cid:'ANMLInsc'},
+      {t:'Leaves',    tokens:['leaves','rustling'],     cat:'WIND',     cid:'WINDVege'},
+      {t:'Thunder',   tokens:['distant thunder'],       cat:'WEATHER',  cid:'THUN'},
+      {t:'Fire',      tokens:['fire','crackle'],        cat:'FIRE',     cid:'FIRECrkl'},
+      {t:'Quiet',     tokens:['quiet','room tone'],     cat:'AMBIENCE', cid:'AMBRoom'},
+  ]},
+  { id:'dens', label:'Density', field:'f_keys', type:'single', chips:[
+      {t:'Sparse',tokens:['sparse']},{t:'Moderate',tokens:['moderate']},{t:'Dense',tokens:['dense']}
+  ]},
+  { id:'mood', label:'Mood / use', field:'f_mood', type:'multi', chips:[
+      {t:'Calm',tokens:['calm']},{t:'Sleep',tokens:['sleep']},{t:'Focus',tokens:['focus']},
+      {t:'Immersive',tokens:['immersive']},{t:'Meditative',tokens:['meditative']},{t:'Tense',tokens:['tense']}
+  ]},
+  { id:'clean', label:'Clean of', field:'f_excl', type:'multi', chips:[
+      {t:'No aircraft',tokens:['no aircraft']},{t:'No voices',tokens:['no voices']},
+      {t:'No traffic',tokens:['no traffic']},{t:'No machinery',tokens:['no machinery']},{t:'No people',tokens:['no people']}
+  ]},
+];
+function buildChips(){
+  const host=$('chipHost');
+  CHIP_GROUPS.forEach(g=>{
+    const wrap=document.createElement('div'); wrap.className='group';
+    const lab=document.createElement('label'); lab.textContent=g.label; wrap.appendChild(lab);
+    const row=document.createElement('div'); row.className='chips';
+    g.chips.forEach((c,i)=>{
+      const el=document.createElement('span'); el.className='chip'; el.dataset.group=g.id; el.dataset.idx=i;
+      el.appendChild(document.createTextNode(c.t));
+      if(g.primary){ const st=document.createElement('span'); st.className='star'; st.textContent='★'; el.appendChild(st); }
+      el.addEventListener('click',()=>{
+        if(g.type==='single'){
+          const wasOn=hasToken(g.field,c.tokens[0]);
+          g.chips.forEach(cc=>cc.tokens.forEach(t=>removeToken(g.field,t)));
+          if(!wasOn) c.tokens.forEach(t=>addToken(g.field,t));
+        }else{
+          const on=hasToken(g.field,c.tokens[0]);
+          c.tokens.forEach(t=> on?removeToken(g.field,t):addToken(g.field,t));
+          if(c.subj) c.subj.forEach(s=> on?removeToken('f_subj',s):addToken('f_subj',s));
+          if(on && primaryComp===g.id+':'+i) primaryComp=null;
+        }
+        refreshChips();
+      });
+      if(g.primary){
+        el.querySelector('.star').addEventListener('click',ev=>{
+          ev.stopPropagation();
+          if(!hasToken(g.field,c.tokens[0])){ c.tokens.forEach(t=>addToken(g.field,t)); if(c.subj)c.subj.forEach(s=>addToken('f_subj',s)); }
+          const key=g.id+':'+i;
+          primaryComp=(primaryComp===key)?null:key;
+          if(primaryComp){ if(c.cat)$('f_cat').value=c.cat; if(c.cid)$('f_catid').value=c.cid; const cs=$('catSel'); if(cs){ cs.value=''; populateSubs(); } }
+          refreshChips();
+        });
+      }
+      row.appendChild(el);
+    });
+    wrap.appendChild(row); host.appendChild(wrap);
+  });
+}
+function refreshChips(){
+  document.querySelectorAll('.chip[data-group]').forEach(el=>{
+    const g=CHIP_GROUPS.find(x=>x.id===el.dataset.group); const c=g.chips[+el.dataset.idx];
+    el.classList.toggle('on', hasToken(g.field,c.tokens[0]));
+    if(g.primary) el.classList.toggle('primary', primaryComp===(g.id+':'+el.dataset.idx));
+  });
+  updateCids(); buildName();
+}
+function componentCatIds(){
+  const comp=CHIP_GROUPS.find(g=>g.id==='comp');
+  const primary=val('f_catid'); const out=[];
+  comp.chips.forEach(c=>{ if(c.cid && hasToken(comp.field,c.tokens[0]) && c.cid!==primary && !out.includes(c.cid)) out.push(c.cid); });
+  extraCids.forEach(cid=>{ if(cid!==primary && !out.includes(cid)) out.push(cid); });
+  return out;
+}
+function updateCids(){
+  const host=$('cidRow'); if(!host) return;
+  const arr=componentCatIds();
+  if(!arr.length){ host.innerHTML='<span class="cidnone">—</span>'; return; }
+  host.innerHTML='';
+  arr.forEach(cid=>{
+    const el=document.createElement('span'); el.className='chip cidchip'; el.textContent=cid;
+    if(extraCids.includes(cid)){
+      const x=document.createElement('span'); x.className='cidx'; x.textContent='✕'; el.appendChild(x);
+      el.addEventListener('click',()=>{ extraCids=extraCids.filter(c=>c!==cid); updateCids(); buildName(); });
+    }
+    host.appendChild(el);
+  });
+}
+
+/* ---------- full UCS list: dropdowns, recents ---------- */
+const CATS=[...new Set(UCS.map(r=>r[1]))].sort();
+function applyMain(cat,cid,fromDropdown){
+  primaryComp=null;
+  $('f_cat').value=cat||''; $('f_catid').value=cid||'';
+  if(!fromDropdown){ const cs=$('catSel'); if(cs){ cs.value=''; populateSubs(); } }
+  refreshChips();
+}
+function buildDropdowns(){
+  const cs=$('catSel');
+  cs.innerHTML='<option value="">Category…</option>'+CATS.map(c=>'<option value="'+c+'">'+c+'</option>').join('');
+  cs.addEventListener('change',populateSubs);
+  $('subSel').addEventListener('change',()=>{
+    const ss=$('subSel'); if(!ss.value) return;
+    const cat=$('catSel').value;
+    applyMain(cat, ss.value, true);
+    setStatus('Main CatID set: '+ss.value+'  ('+cat+' \u203a '+ss.options[ss.selectedIndex].text+')');
+  });
+}
+function populateSubs(){
+  const cat=$('catSel').value, ss=$('subSel');
+  if(!cat){ ss.innerHTML='<option value="">Subcategory…</option>'; ss.disabled=true; return; }
+  const subs=UCS.filter(r=>r[1]===cat);
+  ss.innerHTML='<option value="">Subcategory…</option>'+subs.map(r=>'<option value="'+r[0]+'">'+r[2]+'</option>').join('');
+  ss.disabled=false;
+}
+function loadRecents(){ try{ return JSON.parse(localStorage.getItem('fieldlog_recents')||'[]'); }catch(e){ return []; } }
+function saveRecents(a){ try{ localStorage.setItem('fieldlog_recents', JSON.stringify(a)); }catch(e){} }
+function bumpRecent(cid){
+  if(!cid) return; const a=loadRecents(); const it=a.find(x=>x.cid===cid);
+  if(it){ it.n++; it.ts=Date.now(); } else { a.push({cid:cid, n:1, ts:Date.now()}); }
+  saveRecents(a);
+}
+function renderRecents(){
+  const host=$('recentRow'); if(!host) return;
+  const a=loadRecents().sort((x,y)=> (y.n-x.n)||(y.ts-x.ts)).slice(0,8);
+  if(!a.length){ host.innerHTML='<span class="grouphint" style="margin:0">No recents yet — your most-used codes appear here.</span>'; return; }
+  host.innerHTML='';
+  a.forEach(it=>{
+    const r=UCS.find(u=>u[0]===it.cid);
+    const el=document.createElement('span'); el.className='chip'; el.textContent=it.cid;
+    el.addEventListener('click',()=> applyMain(r?r[1]:'', it.cid, false));
+    host.appendChild(el);
+  });
+}
+
+/* ---------- single-select button groups (technique / format / perspective) ---------- */
+function buildButtonGroup(hostId, items, key, onChange){
+  const host=$(hostId); host.innerHTML='';
+  items.forEach(it=>{
+    const el=document.createElement('span'); el.className='chip'; el.dataset.val=it.val; el.textContent=it.label;
+    el.addEventListener('click',()=>{
+      sel[key]=(sel[key]===it.val)?'':it.val;
+      syncButtonGroup(hostId,key);
+      if(onChange) onChange();
+      buildName();
+    });
+    host.appendChild(el);
+  });
+  syncButtonGroup(hostId,key);
+}
+function syncButtonGroup(hostId,key){
+  const host=$(hostId); if(!host) return;
+  host.querySelectorAll('.chip').forEach(c=>c.classList.toggle('on', sel[key]!=='' && c.dataset.val===sel[key]));
+}
+function toggleTechOther(){
+  const other = sel.technique==='__other';
+  $('f_tech_other').style.display = other?'block':'none';
+}
+function buildTechnique(){
+  buildButtonGroup('techRow', [
+    {val:'Mono',label:'Mono'},{val:'MS',label:'MS'},{val:'Double MS',label:'Double MS'},
+    {val:'XY',label:'XY'},{val:'ORTF',label:'ORTF'},{val:'AB',label:'AB'},
+    {val:'Blumlein',label:'Blumlein'},{val:'Ambisonics',label:'Ambisonics'},
+    {val:'Binaural',label:'Binaural'},{val:'Decca Tree',label:'Decca Tree'},
+    {val:'__other',label:'Other…'}
+  ], 'technique', toggleTechOther);
+}
+function buildFormat(){
+  buildButtonGroup('depthRow', [
+    {val:'32f',label:'32f'},{val:'24',label:'24'},{val:'16',label:'16'}
+  ], 'depth');
+  buildButtonGroup('rateRow', [
+    {val:'44.1',label:'44.1'},{val:'48',label:'48'},{val:'96',label:'96'},{val:'192',label:'192'}
+  ], 'rate');
+}
+function buildPerspective(){
+  buildButtonGroup('moveRow', [
+    {val:'static',label:'Static'},{val:'moving',label:'Moving'}
+  ], 'move');
+  buildButtonGroup('envRow', [
+    {val:'INT',label:'Interior'},{val:'EXT',label:'Exterior'}
+  ], 'env');
+}
+function techniqueValue(){ return sel.technique==='__other'? val('f_tech_other') : sel.technique; }
+
+/* ---------- derive keywords from captured conditions ---------- */
+function conditionTokens(c){
+  const out=[];
+  if(c.season) out.push(c.season.toLowerCase());
+  const p=c.sun_phase||'';
+  if(/golden/i.test(p)) out.push('golden hour');
+  else if(/blue/i.test(p)) out.push('blue hour');
+  else if(/twilight/i.test(p)) out.push('twilight');
+  else if(/night/i.test(p)) out.push('night');
+  if(/rising/i.test(p)) out.push('dawn');
+  else if(/setting/i.test(p)) out.push('dusk');
+  const ms=c.wind_ms;
+  if(typeof ms==='number'){
+    if(ms<0.8) out.push('calm');
+    else if(ms<3.4) out.push('light breeze');
+    else if(ms<8) out.push('breezy');
+    else out.push('windy');
+  }
+  return out;
+}
+
+/* ---------- capture flow ---------- */
+function setStatus(t,err){const s=$('status');s.textContent=t||'';s.className='status'+(err?' err':'');}
+$('capBtn').addEventListener('click',async ()=>{
+  const btn=$('capBtn'); btn.disabled=true;
+  setStatus('Requesting location…');
+  if(!navigator.geolocation){ setStatus('Geolocation not available on this device.',true); btn.disabled=false; return; }
+  navigator.geolocation.getCurrentPosition(async pos=>{
+    const lat=pos.coords.latitude, lon=pos.coords.longitude;
+    const now=new Date();
+    const si=sunInfo(now,lat,lon);
+    const cap={
+      iso:now.toISOString(),
+      date:now.toLocaleDateString(),
+      time:now.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}),
+      place:'', lat:+lat.toFixed(5), lon:+lon.toFixed(5),
+      sun_phase:sunPhase(si.alt,si.rising), sun_alt_deg:+si.alt.toFixed(1),
+      season:seasonOf(now,lat),
+      sky:'', temp_c:null, humidity_pct:null, wind:'', wind_ms:null
+    };
+    $('readout').style.display='grid';
+    $('rGps').textContent=cap.lat+', '+cap.lon;
+    $('rTime').textContent=cap.date+' · '+cap.time;
+    $('rSun').textContent=cap.sun_phase+'  ('+cap.sun_alt_deg+'°)';
+    $('rSeason').textContent=cap.season;
+    $('rLoc').textContent='Looking up…';
+    $('rSky').textContent='…'; $('rTemp').textContent='…'; $('rWind').textContent='…';
+    setStatus('Fetching weather & place name…');
+
+    fetch('https://api.bigdatacloud.net/data/reverse-geocode-client?latitude='+lat+'&longitude='+lon+'&localityLanguage=en')
+      .then(r=>r.json()).then(j=>{
+        const parts=[j.locality,j.city,j.principalSubdivision,j.countryName].filter((v,i,a)=>v&&a.indexOf(v)===i);
+        cap.place=parts.slice(0,3).join(', ')||'Unknown';
+        $('rLoc').textContent=cap.place;
+      }).catch(()=>{ cap.place=''; $('rLoc').textContent='(name unavailable — coords saved)'; });
+
+    try{
+      const u='https://api.open-meteo.com/v1/forecast?latitude='+lat+'&longitude='+lon+
+              '&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,wind_direction_10m,is_day'+
+              '&wind_speed_unit=ms&timezone=auto';
+      const w=await (await fetch(u)).json();
+      const c=w.current;
+      cap.sky=WMO[c.weather_code]||('code '+c.weather_code);
+      cap.temp_c=c.temperature_2m; cap.humidity_pct=c.relative_humidity_2m;
+      cap.wind_ms=c.wind_speed_10m;
+      cap.wind=c.wind_speed_10m.toFixed(1)+' m/s '+compass(c.wind_direction_10m)+' ('+Math.round(c.wind_direction_10m)+'°)';
+      $('rSky').textContent=cap.sky+(c.is_day? ' · day':' · night');
+      $('rTemp').textContent=cap.temp_c+'°C · '+cap.humidity_pct+'%';
+      $('rWind').textContent=cap.wind;
+    }catch(e){
+      $('rSky').textContent='(weather unavailable)'; $('rTemp').textContent='— enter manually'; $('rWind').textContent='—';
+      setStatus('Location & sun captured; weather lookup failed (note it by hand).',true);
+    }
+    lastCapture=cap;
+    const added=conditionTokens(cap);
+    added.forEach(t=>addToken('f_keys',t));
+    refreshChips();
+    if(!$('status').classList.contains('err'))
+      setStatus('Conditions captured · added: '+(added.join(', ')||'—')+'. Classify and save.');
+    btn.disabled=false;
+  }, err=>{
+    setStatus('Location permission denied or unavailable. You can still classify and save without conditions.',true);
+    btn.disabled=false;
+  }, {enableHighAccuracy:true, timeout:12000, maximumAge:0});
+});
+
+/* ---------- filename preview (UCS blocks, incl. optional -UserCategory / _UserData) ---------- */
+function sanitize(s){return (s||'').replace(/[\\/:*?"<>|]/g,'').replace(/\s+/g,' ').trim();}
+function sanitizeBlock(s){return sanitize(s).replace(/_/g,' ').replace(/\s+/g,' ').trim();}
+function buildName(){
+  const cat=sanitize(val('f_catid'))||'CatID';
+  const uc = sel.env ? '-'+sel.env : '';
+  const fx = sanitizeBlock(val('f_desc'))||'FXName';
+  const cid=sanitize(val('f_cid'))||'CreatorID';
+  const lib=sanitize(val('f_lib'))||'SourceID';
+  const ud = sanitizeBlock(val('f_udata')).replace(/\s+/g,'');
+  const name=cat+uc+'_'+fx+'_'+cid+'_'+lib+(ud?'_'+ud:'');
+  $('fnamePrev').textContent=name; return name;
+}
+['f_catid','f_cat','f_desc','f_cid','f_lib','f_udata'].forEach(id=>$(id).addEventListener('input',()=>{ buildName(); refreshChips(); }));
+
+/* ---------- collect / save ---------- */
+function distVal(){ const d=val('f_dist'); if(d==='') return null; const n=+d; return isNaN(n)?d:n; }
+function collect(){
+  return {
+    id:Date.now(),
+    logged:new Date().toISOString(),
+    filename:buildName(),
+    main_catid:val('f_catid'),
+    category:val('f_cat'),
+    user_category:sel.env||'',
+    description:val('f_desc'),
+    creator_id:val('f_cid'),
+    library:val('f_lib'),
+    user_data:val('f_udata'),
+    component_catids:componentCatIds(),
+    keywords:tokensOf(val('f_keys')),
+    subjects:tokensOf(val('f_subj')),
+    mood:tokensOf(val('f_mood')),
+    exclusions:tokensOf(val('f_excl')),
+    perspective:{ movement:sel.move||'', distance_m:distVal(), environment:sel.env||'' },
+    microphone:val('f_mic'),
+    technique:techniqueValue(),
+    recorder:val('f_rec'),
+    format:{ bit_depth:sel.depth||'', sample_rate_khz:sel.rate||'', container:'WAV' },
+    notes:val('f_notes'),
+    conditions:lastCapture
+  };
+}
+$('saveBtn').addEventListener('click',async ()=>{
+  if(!val('f_desc')){ setStatus('Add at least a short description before saving.',true); return; }
+  const entry=collect();
+  bumpRecent(entry.main_catid);
+  saveSetup();                                  // remember hardware + identity on this device
+  memEntries.unshift(entry);
+  await persist(); render();
+  setStatus('Saved. ('+memEntries.length+' total) — setup remembered; take fields cleared.');
+  // reset TAKE-specific fields only (sticky setup stays)
+  ['f_desc','f_keys','f_subj','f_mood','f_excl','f_udata','f_notes','f_cat','f_catid','f_dist'].forEach(id=>$(id).value='');
+  sel.move=''; sel.env=''; syncButtonGroup('moveRow','move'); syncButtonGroup('envRow','env');
+  primaryComp=null; extraCids=[];
+  const cs=$('catSel'); if(cs){ cs.value=''; populateSubs(); }
+  renderRecents(); refreshChips(); buildName();
+  window.scrollTo({top:0,behavior:'smooth'});
+});
+
+/* clear remembered setup (this device) */
+$('clearSetupBtn').addEventListener('click',()=>{
+  try{ localStorage.removeItem('fieldlog_setup'); }catch(e){}
+  ['f_mic','f_rec','f_cid','f_lib','f_tech_other'].forEach(id=>$(id).value='');
+  sel.technique=''; sel.depth=''; sel.rate='';
+  syncButtonGroup('techRow','technique'); syncButtonGroup('depthRow','depth'); syncButtonGroup('rateRow','rate');
+  toggleTechOther(); buildName();
+  setStatus('Remembered setup cleared on this device.');
+});
+
+/* ---------- render / copy / delete ---------- */
+function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function fmtStr(f){ if(!f) return ''; const p=[]; if(f.bit_depth)p.push(f.bit_depth); if(f.sample_rate_khz)p.push(f.sample_rate_khz+'k'); return p.join('/'); }
+function render(){
+  $('count').textContent=memEntries.length;
+  const box=$('entries');
+  if(!memEntries.length){ box.innerHTML='<p class="empty">No entries yet. Capture conditions, classify, and save.</p>'; return; }
+  box.innerHTML=memEntries.map(e=>{
+    const c=e.conditions;
+    const cond = c ? [c.place||(c.lat+', '+c.lon), ((c.date||'')+' '+(c.time||'')).trim(), c.sun_phase, c.season,
+                      (c.sky||'')+(c.temp_c!=null?(' · '+c.temp_c+'°C'):''), c.wind].filter(Boolean).join(' · ')
+                   : 'No conditions captured';
+    const tagArr=[e.category].concat(e.mood||[]).concat(e.exclusions||[]).filter(Boolean).slice(0,6);
+    const tags=tagArr.map(t=>'<span class="tag">'+esc(t)+'</span>').join('');
+    const tech=[e.microphone,e.technique,fmtStr(e.format)].filter(Boolean).join(' · ');
+    const comps=(e.component_catids||[]).join(' ');
+    return '<div class="entry"><h3>'+esc(e.description||'(untitled)')+'</h3>'+
+           '<div class="meta">'+esc(cond)+(tech?('<br>'+esc(tech)):'')+'</div>'+
+           '<div class="meta" style="margin-top:4px;color:var(--sage)">'+esc(e.filename)+
+           (comps?('  ·  +'+esc(comps)):'')+'</div>'+
+           (tags?'<div class="tags">'+tags+'</div>':'')+
+           '<div class="entry-actions">'+
+           '<button class="mini" onclick="copyEntry('+e.id+')">Copy fields</button>'+
+           '<button class="mini del" onclick="delEntry('+e.id+')">Delete</button>'+
+           '</div></div>';
+  }).join('');
+}
+window.copyEntry=function(id){
+  const e=memEntries.find(x=>x.id===id); if(!e) return;
+  const c=e.conditions||{};
+  const j=arr=>((arr||[]).join(', '));
+  const lines=[
+    'Description: '+e.description, 'Filename: '+e.filename,
+    'Category: '+e.category+'   CatID: '+e.main_catid+(e.user_category?('   UserCat: '+e.user_category):''),
+    'Component CatIDs: '+j(e.component_catids),
+    'Keywords: '+j(e.keywords), 'Subjects: '+j(e.subjects), 'Mood/Use: '+j(e.mood), 'Clean of: '+j(e.exclusions),
+    'Mic: '+e.microphone+'   Technique: '+e.technique,
+    'Recorder: '+e.recorder+'   Format: '+fmtStr(e.format),
+    'Perspective: '+[e.perspective&&e.perspective.movement, e.perspective&&e.perspective.distance_m!=null?(e.perspective.distance_m+' m'):'', e.perspective&&e.perspective.environment].filter(Boolean).join(', '),
+    'Creator ID: '+e.creator_id+'   Library: '+e.library+(e.user_data?('   UserData: '+e.user_data):''),
+    'Date/Time: '+((c.date||'')+' '+(c.time||'')).trim(), 'Location: '+(c.place||''),
+    'Coordinates: '+(c.lat!=null?c.lat+', '+c.lon:''),
+    'Sun: '+(c.sun_phase||'')+(c.sun_alt_deg!=null?(' ('+c.sun_alt_deg+'°)'):''), 'Season: '+(c.season||''),
+    'Sky: '+(c.sky||''), 'Temp/Humidity: '+(c.temp_c!=null?c.temp_c+'°C':'')+(c.humidity_pct!=null?(' / '+c.humidity_pct+'%'):''),
+    'Wind: '+(c.wind||''), 'Notes: '+e.notes
+  ];
+  navigator.clipboard.writeText(lines.join('\n')).then(()=>setStatus('Fields copied to clipboard.'))
+    .catch(()=>setStatus('Copy failed — use Show JSON to copy.',true));
+};
+window.delEntry=async function(id){
+  memEntries=memEntries.filter(x=>x.id!==id); await persist(); render(); setStatus('Entry deleted.');
+};
+
+/* ---------- export (JSON only, versioned) + robust save ---------- */
+function stamp(){ const d=new Date(), p=n=>String(n).padStart(2,'0');
+  return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'_'+p(d.getHours())+p(d.getMinutes()); }
+function buildExport(){
+  return JSON.stringify({
+    format:'field-log',
+    schema_version:SCHEMA_VERSION,
+    ucs_version:UCS_VERSION,
+    app_version:APP_VERSION,
+    generated:new Date().toISOString(),
+    count:memEntries.length,
+    entries:memEntries.slice().sort((a,b)=>a.id-b.id)
+  }, null, 2);
+}
+const IS_IOS = /iP(hone|od|ad)/.test(navigator.platform) || (/Mac/.test(navigator.userAgent) && (navigator.maxTouchPoints||0)>1);
+async function saveJson(){
+  if(!memEntries.length){ setStatus('Nothing to export yet.',true); return; }
+  const text=buildExport();
+  const name='field-log_'+stamp()+'.json';
+  const file=new File([text], name, {type:'application/json'});
+  // 1) Web Share with file — the correct path on iPhone (share sheet → Save to Files / AirDrop)
+  if(navigator.canShare && navigator.canShare({files:[file]})){
+    try{ await navigator.share({files:[file]}); setStatus('Shared — choose Save to Files or AirDrop.'); return; }
+    catch(e){ if(e && e.name==='AbortError'){ setStatus('Share cancelled.'); return; } /* else fall through */ }
+  }
+  // 2) iOS without share → go straight to the copy overlay (anchor-download is a no-op on iOS)
+  if(IS_IOS){ openOverlay(text); setStatus('Share unavailable here — copy the JSON from the box.'); return; }
+  // 3) Desktop → anchor download
+  try{
+    const url=URL.createObjectURL(file);
+    const a=document.createElement('a'); a.href=url; a.download=name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 4000);
+    setStatus(name+' downloaded.');
+    return;
+  }catch(e){}
+  // 4) Last resort
+  openOverlay(text); setStatus('Auto-save failed — copy the JSON from the box.',true);
+}
+$('jsonBtn').addEventListener('click',saveJson);
+
+/* copy overlay (universal fallback) */
+function openOverlay(text){ $('jsonBox').value=text; $('overlay').classList.add('on'); }
+$('showJsonBtn').addEventListener('click',()=>{ if(!memEntries.length){ setStatus('Nothing to export yet.',true); return; } openOverlay(buildExport()); });
+$('closeOverlayBtn').addEventListener('click',()=>$('overlay').classList.remove('on'));
+$('overlay').addEventListener('click',ev=>{ if(ev.target===$('overlay')) $('overlay').classList.remove('on'); });
+$('copyJsonBtn').addEventListener('click',()=>{
+  const box=$('jsonBox'); box.focus(); box.select();
+  const done=()=>setStatus('JSON copied. Paste it into a file or Notes.');
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(box.value).then(done).catch(()=>{ try{document.execCommand('copy');done();}catch(e){setStatus('Select the text and copy manually.',true);} });
+  }else{ try{document.execCommand('copy');done();}catch(e){setStatus('Select the text and copy manually.',true);} }
+});
+
+/* import (accepts the versioned wrapper OR a bare array) */
+$('importBtn').addEventListener('click',()=>$('importFile').click());
+$('importFile').addEventListener('change',async ev=>{
+  const f=ev.target.files&&ev.target.files[0]; if(!f) return;
+  try{
+    const parsed=JSON.parse(await f.text());
+    const arr=Array.isArray(parsed)?parsed:(parsed&&Array.isArray(parsed.entries)?parsed.entries:null);
+    if(!arr) throw new Error('no entries');
+    const ids=new Set(memEntries.map(e=>e.id)); let added=0;
+    arr.forEach(e=>{ if(e&&e.id!=null&&!ids.has(e.id)){ memEntries.push(e); ids.add(e.id); added++; } });
+    memEntries.sort((a,b)=>b.id-a.id);
+    await persist(); render();
+    setStatus('Imported '+added+' new entr'+(added===1?'y':'ies')+' (duplicates skipped).');
+  }catch(err){ setStatus('Import failed — that is not a valid field-log JSON file.',true); }
+  ev.target.value='';
+});
+
+/* ---------- full UCS list search (select → add → repeat) ---------- */
+function ucsFind(q){
+  q=q.trim().toLowerCase(); if(q.length<2) return [];
+  const toks=q.split(/\s+/), res=[];
+  for(const r of UCS){
+    const hay=(r[0]+' '+r[1]+' '+r[2]).toLowerCase();
+    if(toks.every(t=>hay.includes(t))){ res.push(r); if(res.length>=12) break; }
+  }
+  return res;
+}
+function renderUcsResults(){
+  const box=$('ucsResults'), q=$('ucsSearch').value, res=ucsFind(q);
+  if(!q.trim()||!res.length){ box.innerHTML=''; box.style.display='none'; return; }
+  box.style.display='block';
+  box.innerHTML=res.map((r,i)=>'<div class="ucsrow" data-i="'+i+'"><span class="ucscid">'+esc(r[0])+'</span>'+esc(r[1])+' \u203a '+esc(r[2])+'</div>').join('');
+  box.querySelectorAll('.ucsrow').forEach(el=>{
+    el.addEventListener('click',()=>{
+      const r=res[+el.dataset.i];
+      if(searchMode==='comp'){
+        if(r[0]!==val('f_catid') && !extraCids.includes(r[0])) extraCids.push(r[0]);
+        updateCids(); buildName();
+        setStatus('Added component: '+r[0]+'  ('+r[1]+' \u203a '+r[2]+') — search the next.');
+      } else {
+        applyMain(r[1], r[0], false);
+        setStatus('Main CatID set: '+r[0]+'  ('+r[1]+' \u203a '+r[2]+')');
+      }
+      $('ucsSearch').value=''; box.innerHTML=''; box.style.display='none'; $('ucsSearch').focus();
+    });
+  });
+}
+$('ucsSearch').addEventListener('input', renderUcsResults);
+document.querySelectorAll('#searchMode .chip').forEach(el=>{
+  el.addEventListener('click',()=>{
+    searchMode=el.dataset.mode;
+    document.querySelectorAll('#searchMode .chip').forEach(c=>c.classList.toggle('on', c.dataset.mode===searchMode));
+  });
+});
+
+/* ---------- restore sticky setup (this device) ---------- */
+function restoreSetup(){
+  const s=loadSetup(); if(!s) return;
+  if(s.microphone) $('f_mic').value=s.microphone;
+  if(s.recorder)   $('f_rec').value=s.recorder;
+  if(s.creator_id) $('f_cid').value=s.creator_id;
+  if(s.library)    $('f_lib').value=s.library;
+  sel.technique=s.technique||''; sel.depth=s.depth||''; sel.rate=s.rate||'';
+  if(s.technique_other) $('f_tech_other').value=s.technique_other;
+  syncButtonGroup('techRow','technique'); syncButtonGroup('depthRow','depth'); syncButtonGroup('rateRow','rate');
+  toggleTechOther();
+}
+
+/* ---------- init ---------- */
+(async()=>{
+  memEntries=await loadEntries();
+  buildChips();
+  buildDropdowns();
+  buildTechnique(); buildFormat(); buildPerspective();
+  renderRecents();
+  restoreSetup();
+  buildName();
+  refreshChips();
+  render();
+})();
+</script>
+</body>
+</html>
